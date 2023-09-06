@@ -19,12 +19,26 @@ GAME_BOARD_2 = [
     [1, 1, 0]
 ]
 
+PINK_PIECE = {
+    "color": 
+        (250, 50, 100),
+    "form":
+        [[0, 1],
+         [0, 1],
+         [0, 1],
+         [1, 1]]
+}
+
 
 class Tile(pg.sprite.Sprite):
-    def __init__(self, size, pos, color=(255, 255, 255)):
+    def __init__(self, size, pos, color=(255, 255, 255), border=True):
         super().__init__()
         self.image = pg.Surface([size, size])
-        self.image.fill((0, 0, 0))
+        if border:
+            self.image.fill((0, 0, 0))
+        else:
+            self.image.fill(color)
+        self.pos = pos
         self.rect = self.image.get_rect(topleft=pos)
         self.inner_image = pg.Surface([size/1.1, size/1.1])
         self.inner_image.fill(color)
@@ -50,15 +64,101 @@ class GameBoard:
     def draw(self, window):
         self.tiles.draw(window)
 
-# write like in hitTheBlock! with the new tile class
-# es müssen tiles hinzugefügt werden können
-# diese müssen außerdem auf ein neues surface geschrieben
-# werden damit dieses als ganzes rotiert werden kann!
-# rotate surface https://stackoverflow.com/questions/4183208/how-do-i-rotate-an-image-around-its-center-using-pygame
-# flip image:  https://www.geeksforgeeks.org/pygame-flip-the-image/
 
+class PlayingPiece(pg.sprite.Sprite):
+    def __init__(self, pos, tiles_params, background_transparent=True):
+        super().__init__()
+        self.width = len(tiles_params["form"][0]) * TILE_WIDTH
+        self.height = len(tiles_params["form"]) * TILE_WIDTH
+        self.background_transparent = background_transparent
+        self.rotations_angle = 90
+        self.rotations = 0
+        self.image = pg.Surface([self.width, self.height], pg.SRCALPHA, 32)
+        self.image.fill((0, 255, 0))
+        self.pos = pos
+        self.rect = self.image.get_rect(topleft=self.pos)
+        self.tiles_params = tiles_params
+        self.tiles = pg.sprite.Group()
+        self.rotated_tiles = pg.sprite.Group()
+        self._add_tiles()
+        self._blit_tiles()
 
+    def _rotate_tiles(self):
+        rotated_tiles = []
+        col_num = len(self.tiles_params["form"][0])
+        row_num = len(self.tiles_params["form"])
+        for col in range(col_num):
+            tiles_row = []
+            for row in range(row_num, 0, -1):
+                tiles_row.append(self.tiles_params["form"][row-1][col])
+            rotated_tiles.append(tiles_row)
+        self.tiles_params["form"].clear()
+        self.tiles_params["form"] = rotated_tiles   
 
+    def _add_tiles(self):
+        for row_num in range(len(self.tiles_params["form"])):
+            for col_num, col in enumerate(self.tiles_params["form"][row_num]):
+                if col:
+                    tile = Tile(
+                        TILE_WIDTH, 
+                        (col_num*TILE_WIDTH, row_num*TILE_WIDTH),
+                        border=False,
+                        color=self.tiles_params["color"]
+                    )
+                    self.tiles.add(tile)
+    
+    def _blit_tiles(self):
+        for tile in self.tiles:
+            self.image.blit(tile.image, tile.rect)
+
+    def flip(self):
+        # save first col
+        first_col = []
+        row_num = len(self.tiles_params["form"])
+        for row in range(row_num):
+            col_value = self.tiles_params["form"][row][0]
+            first_col.append(col_value)
+        
+        # save values from the second row in the first row
+        for row in range(row_num):
+            col_value = self.tiles_params["form"][row][1]
+            self.tiles_params["form"][row][0] = col_value
+        
+        # save values from the first row in the second row
+        for row, value in enumerate(first_col):
+            print("row", row)
+            print("value", value)
+            self.tiles_params["form"][row][1] = value
+        print(self.tiles_params["form"])
+
+        self.tiles.empty()
+        self._add_tiles()
+        self._blit_tiles()
+
+    def rotate(self):
+        self.rect = self.image.get_rect(topleft=self.pos)
+        self.image = pg.transform.rotate(self.image, self.rotations_angle)
+        
+        self.tiles.empty()
+        self._rotate_tiles()
+        self._add_tiles()
+        self._blit_tiles()
+        for tile in self.tiles:
+            tile.image = pg.transform.rotate(tile.image, self.rotations_angle)
+            tile.rect = tile.image.get_rect(topleft=tile.pos)
+            self.rotated_tiles.add(tile)
+        self.tiles.empty()
+        for tile in self.rotated_tiles:
+            self.tiles.add(tile)
+        self.rotated_tiles.empty()
+        
+    def update(self):
+        empty = pg.Color(0,0,0,0)
+        if self.background_transparent:
+            self.image.fill(empty)
+        else:
+            self.image.fill((0, 255, 0))
+        self._blit_tiles()
 
 
 def main():
@@ -71,9 +171,11 @@ def main():
     # tile = Tile(TILE_WIDTH, (10, 10))
     # tiles_group = pg.sprite.Group()
     # tiles_group.add(tile)
-    # piece = PlayingPiece((150, 150), [0, 0, 0])
-    # playing_pieces_group = pg.sprite.Group()
-    # playing_pieces_group.add(piece)
+    piece = PlayingPiece((0, 0), PINK_PIECE)
+    playing_pieces_group = pg.sprite.Group()
+    playing_pieces_group.add(piece)
+
+    piece.flip()
     
     clock = pg.time.Clock()
     fps = 1
@@ -87,11 +189,13 @@ def main():
 
         game_board.draw(window)
         
-        # playing_pieces_group.update()
-        # piece.rotate()
-        # playing_pieces_group.draw(window)
+        piece.rotate()
+
+        playing_pieces_group.update()
+        playing_pieces_group.draw(window)
         
         # tiles_group.draw(window)
+       
         
         pg.display.flip()
 
