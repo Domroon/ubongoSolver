@@ -27,7 +27,8 @@ PINK_PIECE = {
          [0, 1],
          [0, 1],
          [1, 1]],
-    "flippable": True
+    "flippable": True,
+    "rotatable": True
 }
 
 GREEN_PIECE = {
@@ -36,7 +37,8 @@ GREEN_PIECE = {
     "form":
         [[1, 1],
          [1, 0]],
-    "flippable": True
+    "flippable": True,
+    "rotatable": True
 }
 
 RED_PIECE = {
@@ -45,7 +47,8 @@ RED_PIECE = {
     "form":
         [[1, 1],
          [1, 1]],
-    "flippable": False
+    "flippable": False,
+    "rotatable": False
 }
 
 BLUE_PIECE = {
@@ -55,7 +58,8 @@ BLUE_PIECE = {
         [[1],
          [1],
          [1]],
-    "flippable": False
+    "flippable": False,
+    "rotatable": True
 }
 
 suitable_positions = []
@@ -103,6 +107,8 @@ class PlayingPiece:
         self.form = tiles_params["form"]
         self.color = tiles_params["color"]
         self.flippable = tiles_params["flippable"]
+        self.flipped = False
+        self.rotatable = tiles_params["rotatable"]
         self.rotations = 0
         self.tiles = pg.sprite.Group()
         self._add_tiles()
@@ -161,6 +167,10 @@ class PlayingPiece:
             
             self.tiles.empty()
             self._add_tiles()
+            if not self.flipped:
+                self.flipped = True
+            else:
+                self.flipped = False
             return True
         else:
             return False
@@ -182,22 +192,73 @@ class PlayingPiece:
 #     if active:
 #         tile = game_board.tiles.sprites()[game_board_pos_num]
 #         playing_piece.pos = tile.pos
-class Solver:
-    def __init__(self, game_board, playing_piece):
-        self.game_board = game_board
-        self.playing_piece = playing_piece
+class StepRecorder:
+    def __init__(self):
+        self.recorded_steps = []
+    
+    def add_step(self, pos, rotate, flip):
+        step = {
+            "pos": pos,
+            "rotate": rotate,
+            "flip": flip
+        }
+        self.recorded_steps.append(step)
 
-    def fits_in_the_field(self):
-        for tile_num in range(len(self.playing_piece.tiles.sprites())):
-            playing_piece_tile = self.playing_piece.tiles.sprites()[tile_num]
+
+class Solver:
+    def __init__(self, game_board, playing_pieces, step_recorder):
+        self.game_board = game_board
+        self.playing_pieces = playing_pieces
+        self.recorder = step_recorder
+        self.suitable_positions = []
+
+    def _fits_in_the_field(self, piece):
+        for tile_num in range(len(piece.tiles.sprites())):
+            playing_piece_tile = piece.tiles.sprites()[tile_num]
             collided = pg.sprite.spritecollide(playing_piece_tile, self.game_board.tiles, False)
             if not collided:
                 return False
         return True
-        print(collided)
-        print("one piece tile: ", one_piece_sprite.pos)
-        # for tile in self.game_board.tiles.sprites():
-        #     print("game board pos: ", tile.pos)
+
+    def store_suitable_positions(self, piece):
+        positions = []
+        while True:
+            if piece.rotations > 3 and not piece.flipped:
+                piece.rotations = 0
+                if not piece.flippable:
+                    break
+                piece.flip()
+            elif piece.rotations > 3 and piece.flipped:
+                piece.rotations = 0
+                break
+            for tile in self.game_board.tiles.sprites():
+                piece.change_pos(tile.pos[0], tile.pos[1])
+                if self._fits_in_the_field(piece):
+                    positions.append({
+                        "pos": [piece.x, piece.y],
+                        "rotations": piece.rotations,
+                        "flipped": piece.flipped
+                        })
+            if not piece.rotatable:
+                break
+            piece.rotate()
+
+        # piece.rotations = 0
+        # wenn fippbar
+            # piece.flip
+            # solange piece.rotations <= 3
+                # move schleife
+                    # move piece to every position on the game board
+                    # when it fits in the field: add to positions
+                # piece.rotate
+
+        data = {
+            "id": id(piece),
+            "color": piece.color,
+            "positions": positions
+        }
+        self.suitable_positions.append(data)
+
 
     # oben links wird eine kollision erkannt
     # und laut print "one piece tile" befindet 
@@ -253,16 +314,29 @@ def main():
     pg.display.set_caption("Ubongo Solver")
 
     # x=400 y=150
-    game_board = GameBoard(0, 0, GAME_BOARD_1)
-    piece = PlayingPiece(0, 0, PINK_PIECE)
-    piece.change_pos(100, 0)
-    piece.rotate()
+    
+    # piece.change_pos(100, 0)
+    # piece.rotate()
     # piece.change_pos(500, 200)
-    solver = Solver(game_board, piece)
-    if solver.fits_in_the_field():
-        print("Fits in the field")
-    else:
-        print("Fits NOT in the field")
+
+    recorder = StepRecorder()
+    game_board = GameBoard(400, 150, GAME_BOARD_1)
+
+    pink_piece = PlayingPiece(0, 0, PINK_PIECE)
+    green_piece = PlayingPiece(0, 0, GREEN_PIECE)
+    red_piece = PlayingPiece(0, 0, GREEN_PIECE)
+    blue_piece = PlayingPiece(0, 0, GREEN_PIECE)
+    # [pink_piece, green_piece, red_piece, blue_piece]
+    solver = Solver(game_board, [pink_piece], recorder)
+    solver.store_suitable_positions(pink_piece)
+    for pink_pos in solver.suitable_positions[0]["positions"]:
+        print(pink_pos)
+
+
+    # if solver.fits_in_the_field():
+    #     print("Fits in the field")
+    # else:
+    #     print("Fits NOT in the field")
 
     clock = pg.time.Clock()
     fps = 60
@@ -286,7 +360,9 @@ def main():
         # step += 1
 
         game_board.draw(window)
-        piece.draw(window)
+        for piece in solver.playing_pieces:
+            piece.draw(window)
+        # pink_piece.draw(window)
         # playing_pieces_group.update()
         # playing_pieces_group.draw(window)
         pg.display.flip()
