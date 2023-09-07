@@ -132,20 +132,20 @@ class PlayingPiece:
         self.tiles.draw(window)
 
     def rotate(self):
-        rotated_tiles = []
-        col_num = len(self.form[0])
-        row_num = len(self.form)
-        for col in range(col_num):
-            tiles_row = []
-            for row in range(row_num, 0, -1):
-                tiles_row.append(self.form[row-1][col])
-            rotated_tiles.append(tiles_row)
-        self.form.clear()
-        self.form = rotated_tiles  
-        self.rotations += 1
-        self.tiles.empty()
-        self._add_tiles()
-        # print("rotated", self.rotations)
+        if self.rotatable:
+            rotated_tiles = []
+            col_num = len(self.form[0])
+            row_num = len(self.form)
+            for col in range(col_num):
+                tiles_row = []
+                for row in range(row_num, 0, -1):
+                    tiles_row.append(self.form[row-1][col])
+                rotated_tiles.append(tiles_row)
+            self.form.clear()
+            self.form = rotated_tiles  
+            self.rotations += 1
+            self.tiles.empty()
+            self._add_tiles()
     
     def set_rotation_angle(self, angle):
         if angle == 0:
@@ -328,8 +328,21 @@ class Solver:
         #         self.recorder.add_step(current_piece, "Fits in the Field")
 
     def solve(self):
+        # find suitable positions for every playing piece
         for piece in self.playing_pieces:
-            self._store_suitable_positions(piece)              
+            self._store_suitable_positions(piece)
+        # 1 take a piece and put it to a suitable position, remove this pos from suitable_pos
+
+        # 2 does this piece fit without overlapping an other piece?
+            # yes -> 2.1 is there another piece to put on game board? 
+            #           -> yes: goto 1
+            #           -> no: solved
+
+        # 3 put the piece before on another position
+        
+        # 4 is there a position that is not set before for this piece?
+            # no -> go to 3
+            # yes -> goto 2.1     
             
 
 recorded_steps = [
@@ -369,10 +382,11 @@ def main():
 
     pink_piece = PlayingPiece(0, 0, PINK_PIECE)
     green_piece = PlayingPiece(0, 0, GREEN_PIECE)
-    red_piece = PlayingPiece(0, 0, GREEN_PIECE)
-    blue_piece = PlayingPiece(0, 0, GREEN_PIECE)
+    red_piece = PlayingPiece(0, 0, RED_PIECE)
+    blue_piece = PlayingPiece(0, 0, BLUE_PIECE)
+    print("red_piece.rotatable", red_piece.rotatable)
     # [pink_piece, green_piece, red_piece, blue_piece]
-    playing_pieces = [pink_piece, green_piece]
+    playing_pieces = [pink_piece, green_piece, red_piece, blue_piece]
     recorder = StepRecorder(playing_pieces)
     solver = Solver(game_board, playing_pieces, recorder)
     solver.solve()
@@ -384,7 +398,7 @@ def main():
         piece.change_pos(0, 0)
 
     clock = pg.time.Clock()
-    fps = 30
+    fps = 20
 
     step = 0
     show_fitting_positions = False
@@ -407,7 +421,7 @@ def main():
             show_fitting_positions = True
             step = 0
         if show_fitting_positions and step > len(recorder.recorded_steps) - 2:
-            break
+            pass
         if not step > len(recorder.recorded_steps) - 2:
             step += 1
         game_board.draw(window)
