@@ -1,4 +1,5 @@
 import time
+from random import randint
 
 import pygame as pg
 
@@ -226,9 +227,10 @@ class PlayingPiece:
 
 
 class StepRecorder:
-    def __init__(self, playing_pieces):
+    def __init__(self, playing_pieces, print_info_text=True):
         self.playing_pieces = playing_pieces
         self.recorded_steps = []
+        self.print_info_text = print_info_text
     
     def add_step(self, piece, info_text, fits=False):
         step = {
@@ -259,7 +261,9 @@ class StepRecorder:
                 current_piece.flip()
             else:
                 pass
-        print(current_step["info_text"])
+        
+        if self.print_info_text:
+            print(current_step["info_text"])
     
 
 class Solver:
@@ -307,38 +311,63 @@ class Solver:
             "positions": positions
         }
         self.suitable_positions.append(data)
-        # for data in self.suitable_positions:
-        #     current_piece = None
-        #     for piece in self.playing_pieces:
-        #         if data["id"] == id(piece):
-        #             current_piece = piece
-        #     for pos in data["positions"]:
-        #         current_piece.change_pos(pos["pos"][0], pos["pos"][1])
-        #         current_piece.set_rotation_angle(pos["rotation_angle"])
-        #         if pos["flipped"]:
-        #             if current_piece.flipped:
-        #                 pass
-        #             else:
-        #                 current_piece.flip()
-        #         if not pos["flipped"]:
-        #             if current_piece.flipped:
-        #                 current_piece.flip()
-        #             else:
-        #                 pass
-        #         self.recorder.add_step(current_piece, "Fits in the Field")
+
+    # def _delete_suitable_pos(self, piece_id, pos_list_num):
+    #     for suit_pos in self.suitable_positions:
+    #         if suit_pos["id"] == piece_id:
+    #             piece_suitable_positions = suit_pos["positions"]
+    #     piece_suitable_positions.remove
+
+    def _get_random_suitable_position_data(self, piece):
+        # piece_suitable_positions = []
+        piece_id = id(piece)
+        for suit_pos in self.suitable_positions:
+            if suit_pos["id"] == piece_id:
+                if not suit_pos["positions"]:
+                    return False
+                else:
+                    random_list_num = randint(0, len(suit_pos["positions"])-1)
+                    print("len", len(suit_pos["positions"]))
+                    piece_suitable_position = suit_pos["positions"].pop(random_list_num)
+        
+                    return piece_suitable_position
+        
+        # random_list_num = randint(0, len(piece_suitable_positions))
+        # cached_suitable_pos = piece_suitable_positions[random_list_num]
+        # self._delete_suitable_pos(piece_id, random_list_num)
+        # print(cached_suitable_pos)
 
     def solve(self):
-        # find suitable positions for every playing piece
+        # 0 find suitable positions for every playing piece
         for piece in self.playing_pieces:
             self._store_suitable_positions(piece)
+
+        piece_num = 0
         # 1 take a piece and put it to a suitable position, remove this pos from suitable_pos
+        # get a suitable positions for the given piece
+        piece = self.playing_pieces[piece_num]
+        rand_pos = self._get_random_suitable_position_data(piece)
+        self.playing_pieces[piece_num].change_pos(rand_pos['pos'][0], rand_pos['pos'][1])
+        self.playing_pieces[piece_num].set_rotation_angle(rand_pos['rotation_angle'])
+        if rand_pos["flipped"]:
+            if piece.flipped:
+                pass
+            else:
+                piece.flip()
+        if not rand_pos["flipped"]:
+            if piece.flipped:
+                piece.flip()
+            else:
+                pass
+        self.recorder.add_step(piece, info_text=f'Try this position: \nexpected: {rand_pos}\nreal value: pos: [{piece.x},{piece.y}], rotation_angle: {piece.get_rotation_angle()}, flipped: {piece.flipped}')
+
 
         # 2 does this piece fit without overlapping an other piece?
-            # yes -> 2.1 is there another piece to put on game board? 
+            # yes -> 2.1 is there another piece (with a position not tested) to put on game board? 
             #           -> yes: goto 1
             #           -> no: solved
 
-        # 3 put the piece before on another position
+        # 3 put the piece from before to another position
         
         # 4 is there a position that is not set before for this piece?
             # no -> go to 3
@@ -372,22 +401,16 @@ def main():
     window = pg.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pg.display.set_caption("Ubongo Solver")
 
-    # x=400 y=150
-    
-    # piece.change_pos(100, 0)
-    # piece.rotate()
-    # piece.change_pos(500, 200)
-
     game_board = GameBoard(400, 150, GAME_BOARD_1)
 
     pink_piece = PlayingPiece(0, 0, PINK_PIECE)
     green_piece = PlayingPiece(0, 0, GREEN_PIECE)
     red_piece = PlayingPiece(0, 0, RED_PIECE)
     blue_piece = PlayingPiece(0, 0, BLUE_PIECE)
-    print("red_piece.rotatable", red_piece.rotatable)
-    # [pink_piece, green_piece, red_piece, blue_piece]
+
     playing_pieces = [pink_piece, green_piece, red_piece, blue_piece]
-    recorder = StepRecorder(playing_pieces)
+
+    recorder = StepRecorder(playing_pieces, print_info_text=True)
     solver = Solver(game_board, playing_pieces, recorder)
     solver.solve()
     for step in recorder.recorded_steps:
@@ -398,7 +421,7 @@ def main():
         piece.change_pos(0, 0)
 
     clock = pg.time.Clock()
-    fps = 20
+    fps = 120
 
     step = 0
     show_fitting_positions = False
@@ -410,20 +433,26 @@ def main():
                 run = False
         window.fill((255, 100, 100))
 
-        if show_fitting_positions:
-            if recorder.recorded_steps[step]["fits_in_the_field"]:
-                recorder.execute_stored_step(step)
+        # if show_fitting_positions:
+        #     if recorder.recorded_steps[step]["fits_in_the_field"]:
+        #         recorder.execute_stored_step(step)
         
-        if not step > len(recorder.recorded_steps) - 2 and not show_fitting_positions:
+        # if not step > len(recorder.recorded_steps) - 2 and not show_fitting_positions:
+        #     recorder.execute_stored_step(step)
+        #     step += 1
+        # if not show_fitting_positions and step > len(recorder.recorded_steps) - 2:
+        #     show_fitting_positions = True
+        #     step = 0
+        # if step == len(recorder.recorded_steps) - 2:
+        #     recorder.execute_stored_step(step)
+        # if show_fitting_positions and step > len(recorder.recorded_steps) - 2:
+        #     pass
+        # if not step > len(recorder.recorded_steps) - 2:
+        #     step += 1
+        if not step > len(recorder.recorded_steps) - 1:
             recorder.execute_stored_step(step)
             step += 1
-        if not show_fitting_positions and step > len(recorder.recorded_steps) - 2:
-            show_fitting_positions = True
-            step = 0
-        if show_fitting_positions and step > len(recorder.recorded_steps) - 2:
-            pass
-        if not step > len(recorder.recorded_steps) - 2:
-            step += 1
+
         game_board.draw(window)
         for piece in solver.playing_pieces:
             piece.draw(window)
