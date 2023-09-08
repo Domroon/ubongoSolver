@@ -105,6 +105,7 @@ class PlayingPiece:
     def __init__(self, x, y, tiles_params):
         self.x = x
         self.y = y
+        self.positions = []
         self.suitable_positions = []
         self.form = tiles_params["form"].copy()
         self.form_backup = tiles_params["form"].copy()
@@ -230,7 +231,7 @@ class PlayingPiece:
         self.y = 0
         self.tiles.empty()
         self.form.clear()
-        self.form = self.form_backup.copy()
+        self.form = self.form_backup
         self._add_tiles()
 
 
@@ -240,14 +241,6 @@ class Solver:
         self.playing_pieces = playing_pieces
         self.suitable_positions = []
 
-    def _store_suitable_position(self, piece):
-        pos_data = {
-            "pos": [piece.x, piece.y],
-            "rotations": piece.rotations,
-            "flipped": piece.flipped
-        }
-        piece.suitable_positions.append(pos_data)
-
     def _check_completely_in_field(self, piece):
         for tile in piece.tiles:
             collides = pg.sprite.spritecollide(tile, self.game_board.tiles, False)
@@ -255,65 +248,96 @@ class Solver:
                 return False
         return True
 
-    def _move_to_every_bord_pos(self, piece):
-        while True:
-            while True:
-                if piece.rotations > 3:
-                    piece.rotate()
-                    piece.rotations = 0
-                    break
-                for tile in self.game_board.tiles:
-                    piece.change_pos(tile.pos[0], tile.pos[1])
-                    if self._check_completely_in_field(piece):
-                        self._store_suitable_position(piece)
-                if not piece.rotatable:
-                    break
-                piece.rotate()
-            if not piece.flippable:
-                break
-            if piece.flipped:
-                break
-            piece.flip()
-
-    def _find_suitable_positions(self):
-        for piece in self.playing_pieces:
-            self._move_to_every_bord_pos(piece)
+    def _store_suitable_position(self, piece):
+        pos_data = {
+            "pos": [piece.x, piece.y],
+            "rotations": piece.rotations,
+            "flipped": piece.flipped
+        }
+        piece.suitable_positions.append(pos_data)
     
-    def _get_suitable_pos(self, piece, random=False):
-        positions = piece.suitable_positions
-        if not positions:
-            return False
-        if random:
-            random_num = randint(0, len(positions)-1)
-            return positions.pop(random_num)
-        return positions.pop()
+    def _store_position(self, piece):
+        pos_data = {
+            "pos": [piece.x, piece.y],
+            "rotations": piece.rotations,
+            "flipped": piece.flipped
+        }
+        piece.positions.append(pos_data)
 
-    def _check_piece_overlapping(self, piece):
-        # does any tile from the piece overlaps any tiles from all the other pieces?
-        collide_counter = 0
-        other_pieces = self.playing_pieces.copy()
-        other_pieces.remove(piece)
-        for tile in piece.tiles.sprites():
-            # print(f'-->{tile.pos}')
-            for other_piece in other_pieces:
-                collide_list = pg.sprite.spritecollide(tile, other_piece.tiles, False)
-                # print("collidelist", collide_list)
-                for tile in collide_list:
-                    # print(f'collide: {tile.pos}')
-                    collide_counter += 1
-        #     print("----------")
-        # print("collide counter", collide_counter)
-        if collide_counter > 0:
-            return True
-        else:
-            return False
-
+    def _move_to_every_bord_pos(self, piece):
+        for tile in self.game_board.tiles.sprites():
+            piece.change_pos(tile.pos[0], tile.pos[1])
+            for i in range(4):
+                piece.rotate()
+                self._store_position(piece)
+                if self._check_completely_in_field(piece):
+                    self._store_suitable_position(piece)
+ 
     def solve(self):
-        self._find_suitable_positions()
-        for piece in self.playing_pieces:
-            piece.reset()
-        for pos in self.playing_pieces[0].suitable_positions:
-            print(pos)
+        self._move_to_every_bord_pos(self.playing_pieces[0])
+    
+
+    
+
+    # def _move_to_every_bord_pos(self, piece):
+    #     while True:
+    #         while True:
+    #             if piece.rotations > 3:
+    #                 piece.rotate()
+    #                 piece.rotations = 0
+    #                 break
+    #             for tile in self.game_board.tiles:
+    #                 piece.change_pos(tile.pos[0], tile.pos[1])
+    #                 if self._check_completely_in_field(piece):
+    #                     self._store_suitable_position(piece)
+    #             if not piece.rotatable:
+    #                 break
+    #             piece.rotate()
+    #         if not piece.flippable:
+    #             break
+    #         if piece.flipped:
+    #             break
+    #         piece.flip()
+
+    # def _find_suitable_positions(self):
+    #     for piece in self.playing_pieces:
+    #         self._move_to_every_bord_pos(piece)
+    
+    # def _get_suitable_pos(self, piece, random=False):
+    #     positions = piece.suitable_positions
+    #     if not positions:
+    #         return False
+    #     if random:
+    #         random_num = randint(0, len(positions)-1)
+    #         return positions.pop(random_num)
+    #     return positions.pop()
+
+    # def _check_piece_overlapping(self, piece):
+    #     # does any tile from the piece overlaps any tiles from all the other pieces?
+    #     collide_counter = 0
+    #     other_pieces = self.playing_pieces.copy()
+    #     other_pieces.remove(piece)
+    #     for tile in piece.tiles.sprites():
+    #         # print(f'-->{tile.pos}')
+    #         for other_piece in other_pieces:
+    #             collide_list = pg.sprite.spritecollide(tile, other_piece.tiles, False)
+    #             # print("collidelist", collide_list)
+    #             for tile in collide_list:
+    #                 # print(f'collide: {tile.pos}')
+    #                 collide_counter += 1
+    #     #     print("----------")
+    #     # print("collide counter", collide_counter)
+    #     if collide_counter > 0:
+    #         return True
+    #     else:
+    #         return False
+
+    # def solve(self):
+        # self._find_suitable_positions()
+        # for piece in self.playing_pieces:
+        #     piece.reset()
+        # for pos in self.playing_pieces[0].suitable_positions:
+        #     print(pos)
         # piece_num = 0
         # while True:
         #     if piece_num > len(self.playing_pieces) - 1:
@@ -365,6 +389,10 @@ def main():
     # recorder = StepRecorder(playing_pieces, print_info_text=False)
     solver = Solver(game_board, playing_pieces)
     solver.solve()
+    for pos in playing_pieces[0].suitable_positions:
+        print(pos)
+    # for pos in playing_pieces[0].suitable_positions:
+    #     print(pos)
     # for step in recorder.recorded_steps:
     #     print(step)
 
@@ -373,26 +401,20 @@ def main():
     #     piece.change_pos(0, 0)
 
     clock = pg.time.Clock()
-    fps = 2
+    fps = 10
 
     piece_num = 0
     pos_num = 0
 
-    # for piece in playing_pieces:
-    #     piece.reset()
-    playing_pieces[0].change_pos(400, 350)
-    playing_pieces[0].rotate()
-    playing_pieces[0].rotate()
-    playing_pieces[0].rotate()
-    playing_pieces[0].rotate()
-    playing_pieces[0].flip()
-    playing_pieces[0].rotate()
-    playing_pieces[0].rotate()
-    playing_pieces[0].rotate()
+    show_all_positions = True
+    show_suitable_positions = False
 
-    for row in PINK_PIECE["form"]:
-        print(row)
-    print(playing_pieces[0].flipped)
+    # for row in PINK_PIECE["form"]:
+    #     print(row)
+    # print(playing_pieces[0].flipped)
+
+    # reset rotations 
+    playing_pieces[piece_num].rotations = 0
 
     run = True
     while run:
@@ -401,16 +423,54 @@ def main():
                 run = False
         window.fill((255, 100, 100))
 
-        # # show all suitable positions
+        piece = playing_pieces[piece_num]
+        # show all positions
+        if show_all_positions:
+            # piece = playing_pieces[piece_num]
+            piece.change_pos(
+                piece.positions[pos_num]["pos"][0],
+                piece.positions[pos_num]["pos"][1]
+            )
+            piece.rotate()
+            pos_num += 1
+        if pos_num >= len(piece.positions):
+            show_all_positions = False
+            show_suitable_positions = True
+            pos_num = 0
+            piece.rotations = 0
+
+        # show suitable positions
+        if show_suitable_positions:
+            fps = 1
+            # piece = playing_pieces[piece_num]
+            piece.change_pos(
+                piece.suitable_positions[pos_num]["pos"][0],
+                piece.suitable_positions[pos_num]["pos"][1]
+            )
+            while piece.rotations < piece.suitable_positions[pos_num]["rotations"]:
+                piece.rotate()
+            pos_num += 1
+        if pos_num >= len(piece.suitable_positions):
+            show_suitable_positions = False
+        print("piece rotations", piece.rotations)
+
+
+        # show all suitable positions
         # playing_pieces[piece_num].reset()
         # playing_pieces[piece_num].change_pos(
         #     playing_pieces[piece_num].suitable_positions[pos_num]["pos"][0],
         #     playing_pieces[piece_num].suitable_positions[pos_num]["pos"][1]
         # )
-        # if playing_pieces[piece_num].suitable_positions[pos_num]["flipped"]:
+        # print("rotations", playing_pieces[piece_num].suitable_positions[pos_num]["rotations"])
+        # saved_rotations = playing_pieces[piece_num].suitable_positions[pos_num]["rotations"]
+        # for i in range(0, saved_rotations):
+        #     if playing_pieces[piece_num].rotations > 3:
+        #         playing_pieces[piece_num].rotations = 0 
+        #     if playing_pieces[piece_num].rotations < saved_rotations:
+        #         playing_pieces[piece_num].rotate()
+        # if not playing_pieces[piece_num].flipped and playing_pieces[piece_num].suitable_positions[pos_num]["flipped"]:
         #     playing_pieces[piece_num].flip()
-        # for i in range(playing_pieces[piece_num].suitable_positions[pos_num]["rotations"]):
-        #     playing_pieces[piece_num].rotate()
+           
         # pos_num += 1
 
         game_board.draw(window)
