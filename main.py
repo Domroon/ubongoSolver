@@ -132,23 +132,40 @@ class PlayingPiece:
     def draw(self, window):
         self.tiles.draw(window)
 
-    def rotate(self, clockwise=False):
-        if self.rotatable:
-            rotated_tiles = []
-            # print("self form", self.form)
-            # print("-------------------")
-            col_num = len(self.form[0])
-            row_num = len(self.form)
-            for col in range(col_num):
-                tiles_row = []
-                for row in range(row_num, 0, -1):
-                    tiles_row.append(self.form[row-1][col])
-                rotated_tiles.append(tiles_row)
-            self.form.clear()
-            self.form = rotated_tiles  
-            self.rotations += 1
-            self.tiles.empty()
-            self._add_tiles()
+    def rotate(self, clockwise=True):
+        if clockwise:
+            if self.rotatable:
+                rotated_tiles = []
+                # print("self form", self.form)
+                # print("-------------------")
+                col_num = len(self.form[0])
+                row_num = len(self.form)
+                for col in range(col_num):
+                    tiles_row = []
+                    for row in range(row_num, 0, -1):
+                        tiles_row.append(self.form[row-1][col])
+                    rotated_tiles.append(tiles_row)
+                self.form.clear()
+                self.form = rotated_tiles  
+                self.rotations += 1
+                self.tiles.empty()
+                self._add_tiles()
+        else:
+            for i in range(3):
+                if self.rotatable:
+                    rotated_tiles = []
+                    col_num = len(self.form[0])
+                    row_num = len(self.form)
+                    for col in range(col_num):
+                        tiles_row = []
+                        for row in range(row_num, 0, -1):
+                            tiles_row.append(self.form[row-1][col])
+                        rotated_tiles.append(tiles_row)
+                    self.form.clear()
+                    self.form = rotated_tiles  
+                    self.tiles.empty()
+                    self._add_tiles()
+            self.rotations -= 1
     
     # def set_rotation_angle(self, angle):
     #     if angle == 0:
@@ -273,17 +290,72 @@ class Solver:
                     self._store_position(piece)
                     if self._check_completely_in_field(piece):
                         self._store_suitable_position(piece)
-            if piece.flipped:
+            if piece.flipped or not piece.flippable:
                 break
-            piece.flip()
+            if piece.flippable:
+                piece.flip()
         # reset flip
-        piece.flip()
+        if piece.flippable:
+            piece.flip()
  
-    def solve(self):
-        self._move_to_every_bord_pos(self.playing_pieces[0])
-    
+    def _check_piece_overlapping(self, piece):
+        # does any tile from the piece overlaps any tiles from all the other pieces?
+        collide_counter = 0
+        other_pieces = self.playing_pieces.copy()
+        other_pieces.remove(piece)
+        for tile in piece.tiles.sprites():
+            # print(f'-->{tile.pos}')
+            for other_piece in other_pieces:
+                collide_list = pg.sprite.spritecollide(tile, other_piece.tiles, False)
+                # print("collidelist", collide_list)
+                for tile in collide_list:
+                    # print(f'collide: {tile.pos}')
+                    collide_counter += 1
+        #     print("----------")
+        # print("collide counter", collide_counter)
+        if collide_counter > 0:
+            return True
+        else:
+            return False
 
-    
+    def _try_every_piece(self):
+        piece_num = 0
+        while True:
+            # 1 get a suitable pos from the piece and delete this pos from the piece
+            if not self.playing_pieces:
+                break
+            try:
+                piece = self.playing_pieces[piece_num]
+            except IndexError:
+                break
+            if not piece.suitable_positions:
+                self.playing_pieces.remove(piece)
+                # piece_num -= 1
+                continue
+            piece_pos = piece.suitable_positions.pop()
+            piece.change_pos(piece_pos["pos"][0], piece_pos["pos"][1])
+            
+            # 2 check for overlaps with other pieces
+            overlaps = self._check_piece_overlapping(piece)
+            
+            # overlaps ->true
+            if overlaps:
+                piece_num -= 1
+                piece.change_pos(0, 0)
+                continue
+            # overlaps ->false
+            if not overlaps:
+                piece_num += 1
+            print("TEST")
+        
+    def solve(self):
+        # store all suitable positions
+        for piece in self.playing_pieces:
+            self._move_to_every_bord_pos(piece)
+            piece.change_pos(0, 0)
+
+        # self._try_every_piece()
+
 
     # def _move_to_every_bord_pos(self, piece):
     #     while True:
@@ -407,10 +479,11 @@ def main():
     #     piece.change_pos(0, 0)
 
     clock = pg.time.Clock()
-    fps = 5
+    fps = 2
 
     piece_num = 0
     pos_num = 0
+    max_pieces = len(playing_pieces)
 
     show_all_positions = True
     show_suitable_positions = False
@@ -420,7 +493,8 @@ def main():
     # print(playing_pieces[0].flipped)
 
     # reset rotations 
-    playing_pieces[piece_num].rotations = 0
+    for piece in playing_pieces:
+        piece.rotations = 0
 
     run = True
     while run:
@@ -438,9 +512,9 @@ def main():
                 piece.positions[pos_num]["pos"][1]
             )
             piece.rotate()
-            if piece.positions[pos_num]["flipped"] and not piece.flipped:
+            if piece.positions[pos_num]["flipped"] and not piece.flipped and piece.flippable:
                 piece.flip()
-            if not piece.positions[pos_num]["flipped"] and piece.flipped:
+            if not piece.positions[pos_num]["flipped"] and piece.flipped and piece.flippable:
                 piece.flip()
             pos_num += 1
         if pos_num >= len(piece.positions):
@@ -451,7 +525,7 @@ def main():
 
         # show suitable positions
         if show_suitable_positions:
-            fps = 1
+            fps = 3
             # piece = playing_pieces[piece_num]
             piece.change_pos(
                 piece.suitable_positions[pos_num]["pos"][0],
@@ -459,36 +533,26 @@ def main():
             )
             while piece.rotations < piece.suitable_positions[pos_num]["rotations"]:
                 piece.rotate()
-            if piece.suitable_positions[pos_num]["flipped"] and not piece.flipped:
+            if piece.suitable_positions[pos_num]["flipped"] and not piece.flipped and piece.flippable:
                 piece.flip()
-            if not piece.suitable_positions[pos_num]["flipped"] and piece.flipped:
+            if not piece.suitable_positions[pos_num]["flipped"] and piece.flipped and piece.flippable:
                 piece.flip()
             pos_num += 1
-        if pos_num >= len(piece.suitable_positions):
-            show_suitable_positions = False
+            if pos_num >= len(piece.suitable_positions):
+                show_suitable_positions = False
+                show_all_positions = True
+                pos_num = 0
+                piece.rotations = 0
+                piece_num += 1
+                fps = 10
+                piece.change_pos(0, 0)
+            if piece_num >= max_pieces:
+                piece_num = 0
+                # begin with solving
 
         
         print("piece rotations", piece.rotations)
         print("fipped", piece.flipped)
-
-
-        # show all suitable positions
-        # playing_pieces[piece_num].reset()
-        # playing_pieces[piece_num].change_pos(
-        #     playing_pieces[piece_num].suitable_positions[pos_num]["pos"][0],
-        #     playing_pieces[piece_num].suitable_positions[pos_num]["pos"][1]
-        # )
-        # print("rotations", playing_pieces[piece_num].suitable_positions[pos_num]["rotations"])
-        # saved_rotations = playing_pieces[piece_num].suitable_positions[pos_num]["rotations"]
-        # for i in range(0, saved_rotations):
-        #     if playing_pieces[piece_num].rotations > 3:
-        #         playing_pieces[piece_num].rotations = 0 
-        #     if playing_pieces[piece_num].rotations < saved_rotations:
-        #         playing_pieces[piece_num].rotate()
-        # if not playing_pieces[piece_num].flipped and playing_pieces[piece_num].suitable_positions[pos_num]["flipped"]:
-        #     playing_pieces[piece_num].flip()
-           
-        # pos_num += 1
 
         game_board.draw(window)
         for piece in solver.playing_pieces:
