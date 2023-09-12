@@ -334,6 +334,17 @@ class Solver:
                 continue
             piece_pos = piece.suitable_positions.pop()
             piece.change_pos(piece_pos["pos"][0], piece_pos["pos"][1])
+            while True:
+                if piece.rotations == piece_pos["rotations"]:
+                    break
+                if piece.rotations < piece_pos["rotations"]:
+                    piece.rotate()
+                elif piece.rotations > piece_pos["rotations"]:
+                    piece.rotate(clockwise=False)
+            if piece_pos["flipped"] and not piece.flipped and piece.flippable:
+                piece.flip()
+            if not piece_pos["flipped"] and piece.flipped and piece.flippable:
+                piece.flip()
             
             # 2 check for overlaps with other pieces
             overlaps = self._check_piece_overlapping(piece)
@@ -354,7 +365,7 @@ class Solver:
             self._move_to_every_bord_pos(piece)
             piece.change_pos(0, 0)
 
-        # self._try_every_piece()
+        self._try_every_piece()
 
 
     # def _move_to_every_bord_pos(self, piece):
@@ -479,7 +490,7 @@ def main():
     #     piece.change_pos(0, 0)
 
     clock = pg.time.Clock()
-    fps = 2
+    fps = 1
 
     piece_num = 0
     pos_num = 0
