@@ -16,10 +16,6 @@ GAME_BOARD_1 = [
     [1, 1, 1, 1]
 ]
 
-GAME_BOARD_2 = [
-    [1, 1, 0]
-]
-
 PINK_PIECE = {
     "color": 
         (250, 50, 100),
@@ -107,7 +103,6 @@ class PlayingPiece:
         self.y = y
         self.positions = []
         self.suitable_positions = []
-        # self.solution_position = None
         self.form = tiles_params["form"].copy()
         self.form_backup = tiles_params["form"].copy()
         self.color = tiles_params["color"]
@@ -138,8 +133,6 @@ class PlayingPiece:
         if clockwise:
             if self.rotatable:
                 rotated_tiles = []
-                # print("self form", self.form)
-                # print("-------------------")
                 col_num = len(self.form[0])
                 row_num = len(self.form)
                 for col in range(col_num):
@@ -170,7 +163,6 @@ class PlayingPiece:
             self.rotations -= 1
 
     def flip(self):
-        # self.reset()
         # save first col
         first_col = []
         row_num = len(self.form)
@@ -267,14 +259,12 @@ class Solver:
         print(f'Detect suitable positions for piece with color {piece.color}')
         while True:
             for tile in self.game_board.tiles.sprites():
-                # piece.change_pos(tile.pos[0], tile.pos[1])
                 piece.x = tile.pos[0]
                 piece.y = tile.pos[1]
                 piece.tiles.empty()
                 piece._add_tiles()
                 for i in range(4):
                     piece.rotate()
-                    # self._store_position(piece)
                     if self._check_completely_in_field(piece):
                         self._store_position(piece, piece.suitable_positions)
             if piece.flipped or not piece.flippable:
@@ -302,9 +292,9 @@ class Solver:
     def solve(self, piece_num):
         try:
             piece = self.playing_pieces[piece_num]
-            # store actual position here for show later?
         except IndexError:
-            print("solved")
+            print("Solved")
+            print("Show solution steps...")
 
         if piece_num == 4:
             return True
@@ -325,7 +315,6 @@ class Solver:
                     return True
             
             piece.reset_pos()
-            # self._store_position(piece, piece.positions)
     
         return False
 
@@ -348,17 +337,12 @@ def main():
     solver = Solver(game_board, playing_pieces)
     for piece in solver.playing_pieces:
         solver.detect_suitable_positions(piece)
-    # reset all pieces
+
     for piece in solver.playing_pieces:
         piece.reset_pos()
     
-    print("Start solving Algorithm (that can take a few moments)")
+    print("Start solving Algorithm (that may take a few moments)")
     solver.solve(0)
-
-    # for piece in solver.playing_pieces:
-    #     for pos in piece.positions:
-    #         print(pos)
-    #     print("--------------")
 
     clock = pg.time.Clock()
     fps = 1
@@ -396,6 +380,7 @@ def main():
 
         pg.display.flip()
         clock.tick(fps)
+
 
 if __name__ == '__main__':
     main()
