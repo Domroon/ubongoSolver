@@ -59,8 +59,6 @@ BLUE_PIECE = {
     "rotatable": True
 }
 
-suitable_positions = []
-
 
 class Tile(pg.sprite.Sprite):
     def __init__(self, size, pos, color=(255, 255, 255), border=True):
@@ -163,21 +161,8 @@ class PlayingPiece:
             self.rotations -= 1
 
     def flip(self):
-        # save first col
-        first_col = []
-        row_num = len(self.form)
-        for row in range(row_num):
-            col_value = self.form[row][0]
-            first_col.append(col_value)
-            
-        # save values from the second col in the first col
-        for row in range(row_num):
-            col_value = self.form[row][row_num - 3]
-            self.form[row][0] = col_value
-            
-        # save values from the first col in the second col
-        for row, value in enumerate(first_col):
-            self.form[row][row_num - 3] = value
+        for row in self.form:
+            row.reverse()
             
         self.tiles.empty()
         self._add_tiles()
