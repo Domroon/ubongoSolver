@@ -107,7 +107,7 @@ class PlayingPiece:
         self.y = y
         self.positions = []
         self.suitable_positions = []
-        self.solution_position = None
+        # self.solution_position = None
         self.form = tiles_params["form"].copy()
         self.form_backup = tiles_params["form"].copy()
         self.color = tiles_params["color"]
@@ -117,6 +117,7 @@ class PlayingPiece:
         self.rotations = 0
         self.tiles = pg.sprite.Group()
         self._add_tiles()
+        self.active = True
 
     def _add_tiles(self):
         for row_num in range(len(self.form)):
@@ -254,13 +255,13 @@ class Solver:
                 return False
         return True
 
-    def _store_suitable_position(self, piece):
+    def _store_position(self, piece, pos_list):
         pos_data = {
             "pos": [piece.x, piece.y],
             "rotations": piece.rotations,
             "flipped": piece.flipped
         }
-        piece.suitable_positions.append(pos_data)
+        pos_list.append(pos_data)
 
     def detect_suitable_positions(self, piece):
         print(f'Detect suitable positions for piece with color {piece.color}')
@@ -275,7 +276,7 @@ class Solver:
                     piece.rotate()
                     # self._store_position(piece)
                     if self._check_completely_in_field(piece):
-                        self._store_suitable_position(piece)
+                        self._store_position(piece, piece.suitable_positions)
             if piece.flipped or not piece.flippable:
                 break
             if piece.flippable:
@@ -315,6 +316,7 @@ class Solver:
         shuffle(positions)
         for pos in positions:
             piece.change_pos(pos)
+            self._store_position(piece, piece.positions)
             overlapping = self._check_piece_overlapping(piece)
 
             if not overlapping:
@@ -323,6 +325,7 @@ class Solver:
                     return True
             
             piece.reset_pos()
+            # self._store_position(piece, piece.positions)
     
         return False
 
@@ -349,14 +352,16 @@ def main():
     for piece in solver.playing_pieces:
         piece.reset_pos()
     
-    print("Start solving Algorithm")
+    print("Start solving Algorithm (that can take a few moments)")
     solver.solve(0)
 
-    
-
+    # for piece in solver.playing_pieces:
+    #     for pos in piece.positions:
+    #         print(pos)
+    #     print("--------------")
 
     clock = pg.time.Clock()
-    fps = 20
+    fps = 1
 
     piece_num = 0
     pos_num = 0
@@ -373,15 +378,16 @@ def main():
                 run = False
         window.fill((255, 100, 100))
 
-        # if show_suitable_positions:
-        #     fps = 3
-        #     piece = playing_pieces[piece_num]
-        #     piece.change_pos(piece.suitable_positions[pos_num])
-        #     pos_num += 1
-        #     if pos_num >= len(piece.suitable_positions):
-        #         piece.reset_pos()
-        #         piece_num += 1
-        #         pos_num = 0
+        for piece in solver.playing_pieces:
+            try:
+                piece.change_pos(piece.positions[pos_num])
+            except IndexError:
+                if piece.active:
+                    fps += 10
+                    print(f'Piece with color {piece.color} reached end position')
+                    piece.active = False
+
+        pos_num += 1
 
         game_board.draw(window)
         for piece in solver.playing_pieces:
