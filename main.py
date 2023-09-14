@@ -278,7 +278,8 @@ class Solver:
     #     }
     #     piece.positions.append(pos_data)
 
-    def _move_to_every_bord_pos(self, piece):
+    def detect_suitable_positions(self, piece):
+        print(f'Detect suitable positions for piece with color {piece.color}')
         while True:
             for tile in self.game_board.tiles.sprites():
                 # piece.change_pos(tile.pos[0], tile.pos[1])
@@ -371,7 +372,7 @@ class Solver:
             piece = self.playing_pieces[piece_num]
             # store actual position here for show later?
         except IndexError:
-            print("SOLVED")
+            print("solved")
 
         if piece_num == 4:
             return True
@@ -412,10 +413,12 @@ def main():
 
     solver = Solver(game_board, playing_pieces)
     for piece in solver.playing_pieces:
-        solver._move_to_every_bord_pos(piece)
+        solver.detect_suitable_positions(piece)
     # reset all pieces
     for piece in solver.playing_pieces:
         piece.reset_pos()
+    
+    print("Start solving Algorithm")
     solver.solve(0)
 
     
