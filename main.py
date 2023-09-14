@@ -262,22 +262,6 @@ class Solver:
         }
         piece.suitable_positions.append(pos_data)
 
-    # def _store_solution_position(self, piece):
-    #     pos_data = {
-    #         "pos": [piece.x, piece.y],
-    #         "rotations": piece.rotations,
-    #         "flipped": piece.flipped
-    #     }
-    #     piece.solution_position = pos_data
-    
-    # def _store_position(self, piece):
-    #     pos_data = {
-    #         "pos": [piece.x, piece.y],
-    #         "rotations": piece.rotations,
-    #         "flipped": piece.flipped
-    #     }
-    #     piece.positions.append(pos_data)
-
     def detect_suitable_positions(self, piece):
         print(f'Detect suitable positions for piece with color {piece.color}')
         while True:
@@ -301,71 +285,18 @@ class Solver:
             piece.flip()
  
     def _check_piece_overlapping(self, piece):
-        # does any tile from the piece overlaps any tiles from all the other pieces?
         collide_counter = 0
         other_pieces = self.playing_pieces.copy()
         other_pieces.remove(piece)
         for tile in piece.tiles.sprites():
-            # print(f'-->{tile.pos}')
             for other_piece in other_pieces:
                 collide_list = pg.sprite.spritecollide(tile, other_piece.tiles, False)
-                # print("collidelist", collide_list)
                 for tile in collide_list:
-                    # print(f'collide: {tile.pos}')
                     collide_counter += 1
-        #     print("----------")
-        # print("collide counter", collide_counter)
         if collide_counter > 0:
             return True
         else:
             return False
-
-    def _try_every_piece(self):
-        piece_num = 0
-        while True:
-            # 1 get a suitable pos from the piece and delete this pos from the piece
-            if not self.playing_pieces:
-                break
-            try:
-                piece = self.playing_pieces[piece_num]
-            except IndexError:
-                for piece in self.playing_pieces:
-                    self.solved_pieces.append(piece)
-                # print(self.solved_pieces)
-                break
-            if not piece.suitable_positions:
-                self._store_solution_position(piece)
-                self.solved_pieces.append(piece)
-                self.playing_pieces.remove(piece)
-                # piece_num -= 1
-                continue
-            piece_pos = piece.suitable_positions.pop()
-            piece.change_pos(piece_pos["pos"][0], piece_pos["pos"][1])
-            while True:
-                if piece.rotations == piece_pos["rotations"]:
-                    break
-                if piece.rotations < piece_pos["rotations"]:
-                    piece.rotate()
-                elif piece.rotations > piece_pos["rotations"]:
-                    piece.rotate(clockwise=False)
-            if piece_pos["flipped"] and not piece.flipped and piece.flippable:
-                piece.flip()
-            if not piece_pos["flipped"] and piece.flipped and piece.flippable:
-                piece.flip()
-            
-            # 2 check for overlaps with other pieces
-            overlaps = self._check_piece_overlapping(piece)
-            
-            # overlaps ->true
-            if overlaps:
-                piece_num -= 1
-                piece.change_pos(0, 0)
-                continue
-            # overlaps ->false
-            if not overlaps:
-                piece_num += 1
-            for piece in self.playing_pieces:
-                self._store_solution_position(piece)
         
     def solve(self, piece_num):
         try:
@@ -429,7 +360,6 @@ def main():
 
     piece_num = 0
     pos_num = 0
-    # max_pieces = len(playing_pieces)
 
     show_all_positions = False 
     show_suitable_positions = True
